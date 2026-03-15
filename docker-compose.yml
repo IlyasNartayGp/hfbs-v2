@@ -1,0 +1,146 @@
+version: '3.9'
+
+services:
+
+  # ─── NGINX GATEWAY ───────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8880:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - frontend
+      - fastapi
+      - django
+      - antifrod
+    networks:
+      - hfbs-network
+
+  # ─── FRONTEND (Next.js) ──────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3737:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://nginx:8880/api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - hfbs-network
+
+  # ─── FASTAPI (async) — бронирование ─────────────────────
+  fastapi:
+    build:
+      context: ./backend-fastapi
+      dockerfile: Dockerfile
+    ports:
+      - "9101:8001"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://hfbs:hfbs_pass@postgres:5432/hfbs
+      - REDIS_URL=redis://redis:6379
+      - ANTIFROD_URL=http://antifrod:9303
+    depends_on:
+      - postgres
+      - redis
+      - antifrod
+    volumes:
+      - ./backend-fastapi:/app
+    networks:
+      - hfbs-network
+
+  # ─── DJANGO (sync) — PDF, admin ──────────────────────────
+  django:
+    build:
+      context: ./backend-django
+      dockerfile: Dockerfile
+    ports:
+      - "9202:8002"
+    environment:
+      - DATABASE_URL=postgresql://hfbs:hfbs_pass@postgres:5432/hfbs
+      - REDIS_URL=redis://redis:6379
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5892/
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    volumes:
+      - ./backend-django:/app
+    networks:
+      - hfbs-network
+
+  # ─── CELERY WORKER ───────────────────────────────────────
+  celery:
+    build:
+      context: ./backend-django
+      dockerfile: Dockerfile
+    command: celery -A config worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://hfbs:hfbs_pass@postgres:5432/hfbs
+      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5892/
+    depends_on:
+      - postgres
+      - rabbitmq
+    volumes:
+      - ./backend-django:/app
+    networks:
+      - hfbs-network
+
+  # ─── ANTIFROD AI ─────────────────────────────────────────
+  antifrod:
+    build:
+      context: ./antifrod
+      dockerfile: Dockerfile
+    ports:
+      - "9303:8003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - MODEL_PATH=/app/models/antifrod_model.pkl
+    depends_on:
+      - redis
+    volumes:
+      - ./antifrod:/app
+    networks:
+      - hfbs-network
+
+  # ─── POSTGRESQL ──────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=hfbs
+      - POSTGRES_USER=hfbs
+      - POSTGRES_PASSWORD=hfbs_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "6543:5432"
+    networks:
+      - hfbs-network
+
+  # ─── REDIS ───────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - hfbs-network
+
+  # ─── RABBITMQ ────────────────────────────────────────────
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5892:5672"
+      - "15892:15672"
+    networks:
+      - hfbs-network
+
+volumes:
+  postgres_data:
+
+networks:
+  hfbs-network:
+    driver: bridge
