@@ -1,0 +1,13 @@
+Method,Name,Error,Occurrences
+GET,/api/events/{id} [detail],HTTPError('500 Server Error: Internal Server Error for url: /api/events/{id} [detail]'),23
+GET,/api/auth/me/bookings,HTTPError('401 Client Error: Unauthorized for url: /api/auth/me/bookings'),52
+GET,/api/events/{id}/seats,RemoteDisconnected('Remote end closed connection without response'),8
+GET,/api/events/ [list],HTTPError('500 Server Error: Internal Server Error for url: /api/events/ [list]'),116
+GET,/api/events/{id}/seats,HTTPError('500 Server Error: Internal Server Error for url: /api/events/{id}/seats'),82
+POST,/api/bookings/ [human],RemoteDisconnected('Remote end closed connection without response'),2
+GET,/api/events/ [list],RemoteDisconnected('Remote end closed connection without response'),7
+POST,/api/bookings/ [auth],HTTPError('429 Client Error: Too Many Requests for url: /api/bookings/ [auth]'),187
+GET,/api/auth/me,RemoteDisconnected('Remote end closed connection without response'),1
+GET,/api/auth/me,HTTPError('401 Client Error: Unauthorized for url: /api/auth/me'),64
+POST,/api/bookings/ [auth],RemoteDisconnected('Remote end closed connection without response'),1
+POST,/api/auth/register,HTTPError('500 Server Error: Internal Server Error for url: /api/auth/register'),150

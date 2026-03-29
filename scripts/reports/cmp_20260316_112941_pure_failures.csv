@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences
+POST,[fastapi] POST /api/bookings/,HTTPError('422 Client Error: Unprocessable Entity for url: [fastapi] POST /api/bookings/'),336
+POST,[slow-bot] POST /api/bookings/,HTTPError('422 Client Error: Unprocessable Entity for url: [slow-bot] POST /api/bookings/'),395
+GET,[django] GET /admin/,HTTPError('502 Server Error: Bad Gateway for url: [django] GET /admin/'),144
+POST,[pure] POST /api/bookings/,HTTPError('422 Client Error: Unprocessable Entity for url: [pure] POST /api/bookings/'),482

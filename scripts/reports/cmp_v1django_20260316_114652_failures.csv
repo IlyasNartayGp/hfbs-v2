@@ -1,0 +1,6 @@
+Method,Name,Error,Occurrences
+GET,GET /api/v1/events/,HTTPError('429 Client Error: Too Many Requests for url: GET /api/v1/events/'),918
+POST,POST /api/v1/seats/reserve/,HTTPError('401 Client Error: Unauthorized for url: POST /api/v1/seats/reserve/'),802
+GET,GET /api/v1/seats/,HTTPError('500 Server Error: Internal Server Error for url: GET /api/v1/seats/'),6
+GET,GET /api/v1/seats/,HTTPError('429 Client Error: Too Many Requests for url: GET /api/v1/seats/'),746
+GET,GET /api/v1/events/,HTTPError('500 Server Error: Internal Server Error for url: GET /api/v1/events/'),3

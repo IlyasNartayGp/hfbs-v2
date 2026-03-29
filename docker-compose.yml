@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
 
-  # ─── NGINX GATEWAY ───────────────────────────────────────
+  # ─── NGINX ───────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     ports:
@@ -17,7 +17,7 @@ services:
     networks:
       - hfbs-network
 
-  # ─── FRONTEND (Next.js) ──────────────────────────────────
+  # ─── FRONTEND ────────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -33,7 +33,7 @@ services:
     networks:
       - hfbs-network
 
-  # ─── FASTAPI (async) — бронирование ─────────────────────
+  # ─── FASTAPI ─────────────────────────────────────────────
   fastapi:
     build:
       context: ./backend-fastapi
@@ -43,17 +43,22 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://hfbs:hfbs_pass@postgres:5432/hfbs
       - REDIS_URL=redis://redis:6379
+      - KAFKA_URL=kafka:9092
       - ANTIFROD_URL=http://antifrod:9303
     depends_on:
-      - postgres
-      - redis
-      - antifrod
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend-fastapi:/app
+      - tickets_data:/app/media/tickets
     networks:
       - hfbs-network
 
-  # ─── DJANGO (sync) — PDF, admin ──────────────────────────
+  # ─── DJANGO (только auth + admin) ────────────────────────
   django:
     build:
       context: ./backend-django
@@ -63,34 +68,17 @@ services:
     environment:
       - DATABASE_URL=postgresql://hfbs:hfbs_pass@postgres:5432/hfbs
       - REDIS_URL=redis://redis:6379
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5892/
     depends_on:
-      - postgres
-      - redis
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
     volumes:
       - ./backend-django:/app
     networks:
       - hfbs-network
 
-  # ─── CELERY WORKER ───────────────────────────────────────
-  celery:
-    build:
-      context: ./backend-django
-      dockerfile: Dockerfile
-    command: celery -A config worker --loglevel=info
-    environment:
-      - DATABASE_URL=postgresql://hfbs:hfbs_pass@postgres:5432/hfbs
-      - CELERY_BROKER_URL=amqp://guest:guest@rabbitmq:5892/
-    depends_on:
-      - postgres
-      - rabbitmq
-    volumes:
-      - ./backend-django:/app
-    networks:
-      - hfbs-network
-
-  # ─── ANTIFROD AI ─────────────────────────────────────────
+  # ─── ANTIFROD ML сервис ───────────────────────────────────
   antifrod:
     build:
       context: ./antifrod
@@ -104,8 +92,47 @@ services:
       - redis
     volumes:
       - ./antifrod:/app
+      - antifrod_models:/app/models
     networks:
       - hfbs-network
+
+  # ─── TICKET CONSUMER (PDF генерация) ─────────────────────
+  ticket-consumer:
+    build:
+      context: ./backend-fastapi
+      dockerfile: Dockerfile
+    command: python -m app.consumers.ticket_consumer
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://hfbs:hfbs_pass@postgres:5432/hfbs
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_URL=kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - tickets_data:/app/media/tickets
+    networks:
+      - hfbs-network
+    restart: unless-stopped
+
+  # ─── ANTIFROD CONSUMER (ML проверка после брони) ─────────
+  antifrod-consumer:
+    build:
+      context: ./backend-fastapi
+      dockerfile: Dockerfile
+    command: python -m app.consumers.antifrod_consumer
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_URL=kafka:9092
+      - ANTIFROD_URL=http://antifrod:9303
+    depends_on:
+      - kafka
+      - antifrod
+    networks:
+      - hfbs-network
+    restart: unless-stopped
 
   # ─── POSTGRESQL ──────────────────────────────────────────
   postgres:
@@ -120,6 +147,11 @@ services:
       - "6543:5432"
     networks:
       - hfbs-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hfbs"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # ─── REDIS ───────────────────────────────────────────────
   redis:
@@ -129,17 +161,42 @@ services:
     networks:
       - hfbs-network
 
-  # ─── RABBITMQ ────────────────────────────────────────────
-  rabbitmq:
-    image: rabbitmq:3-management-alpine
-    ports:
-      - "5892:5672"
-      - "15892:15672"
+  # ─── KAFKA ───────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
     networks:
       - hfbs-network
 
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - hfbs-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
 volumes:
   postgres_data:
+  tickets_data:
+  antifrod_models:
 
 networks:
   hfbs-network:

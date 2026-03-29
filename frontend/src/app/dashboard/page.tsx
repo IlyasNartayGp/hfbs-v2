@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Shield, TrendingUp, Users, Ban, Activity, RefreshCw } from "lucide-react";
 
 interface Stats {
   blocked_total: number;
@@ -8,209 +8,179 @@ interface Stats {
   total_requests: number;
   block_rate: number;
   model_metrics: {
+    f1?: number;
+    roc_auc?: number;
     accuracy?: number;
     precision?: number;
     recall?: number;
-    f1?: number;
-    roc_auc?: number;
-    trained_at?: string;
-    feature_importance?: Record<string, number>;
   };
 }
 
 interface LogEntry {
   ip: string;
+  event_id: number;
+  seat_id: number;
   is_bot: boolean;
   confidence: number;
   verdict: string;
-  event_id: number;
-  seat_id: number;
   ts: number;
 }
 
-const MOCK_LOGS: LogEntry[] = [
-  { ip: "185.220.101.x", is_bot: true,  confidence: 0.97, verdict: "blocked",    event_id: 1, seat_id: 1,  ts: Date.now() / 1000 - 2 },
-  { ip: "91.108.4.x",    is_bot: true,  confidence: 0.91, verdict: "blocked",    event_id: 1, seat_id: 1,  ts: Date.now() / 1000 - 5 },
-  { ip: "213.87.x.x",    is_bot: false, confidence: 0.08, verdict: "allowed",    event_id: 1, seat_id: 7,  ts: Date.now() / 1000 - 8 },
-  { ip: "77.234.x.x",    is_bot: true,  confidence: 0.88, verdict: "blocked",    event_id: 2, seat_id: 3,  ts: Date.now() / 1000 - 12 },
-  { ip: "95.165.x.x",    is_bot: false, confidence: 0.12, verdict: "allowed",    event_id: 1, seat_id: 14, ts: Date.now() / 1000 - 15 },
-  { ip: "178.62.x.x",    is_bot: false, confidence: 0.55, verdict: "suspicious", event_id: 2, seat_id: 2,  ts: Date.now() / 1000 - 20 },
-];
-
 const MOCK_STATS: Stats = {
-  blocked_total: 142,
-  allowed_total: 1893,
-  total_requests: 2035,
-  block_rate: 6.97,
-  model_metrics: {
-    accuracy: 0.9612,
-    precision: 0.9534,
-    recall: 0.9701,
-    f1: 0.9617,
-    roc_auc: 0.9889,
-    trained_at: "2025-03-15 14:00:00",
-    feature_importance: {
-      requests_per_minute: 0.2341,
-      secs_after_sale_open: 0.1987,
-      seat_attempts: 0.1654,
-      session_duration_sec: 0.1123,
-      is_known_bot_ua: 0.0987,
-      unique_seats_tried: 0.0876,
-      always_front_row: 0.0654,
-      avg_price_targeted: 0.0234,
-      is_suspicious_ip: 0.0098,
-      hour_of_day: 0.0046,
-    },
-  },
+  blocked_total: 1284,
+  allowed_total: 9847,
+  total_requests: 11131,
+  block_rate: 11.54,
+  model_metrics: { f1: 0.9312, roc_auc: 0.9748, accuracy: 0.9401, precision: 0.9187, recall: 0.9441 },
 };
 
+const MOCK_LOGS: LogEntry[] = [
+  { ip: "185.220.101.5", event_id: 1, seat_id: 42, is_bot: true, confidence: 0.97, verdict: "blocked", ts: Date.now() - 12000 },
+  { ip: "91.185.23.11", event_id: 1, seat_id: 15, is_bot: false, confidence: 0.12, verdict: "allowed", ts: Date.now() - 34000 },
+  { ip: "162.247.72.3", event_id: 2, seat_id: 7, is_bot: true, confidence: 0.89, verdict: "blocked", ts: Date.now() - 61000 },
+  { ip: "178.45.12.88", event_id: 1, seat_id: 99, is_bot: false, confidence: 0.08, verdict: "allowed", ts: Date.now() - 90000 },
+  { ip: "185.100.87.41", event_id: 3, seat_id: 3, is_bot: true, confidence: 0.94, verdict: "blocked", ts: Date.now() - 120000 },
+];
+
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>(MOCK_STATS);
-  const [logs, setLogs] = useState<LogEntry[]>(MOCK_LOGS);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [statsRes, logsRes] = await Promise.all([
-          fetch("/api/antifrod/stats"),
-          fetch("/api/antifrod/logs?limit=20"),
-        ]);
-        if (statsRes.ok) setStats(await statsRes.json());
-        if (logsRes.ok) {
-          const data = await logsRes.json();
-          if (data.logs?.length) setLogs(data.logs);
-        }
-      } catch {}
-    };
-    fetchAll();
-    const interval = setInterval(fetchAll, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const verdictBadge = (verdict: string) => {
-    if (verdict === "blocked")    return "bg-red-900/50 text-red-300";
-    if (verdict === "suspicious") return "bg-amber-900/50 text-amber-300";
-    return "bg-green-900/50 text-green-300";
+  const load = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const [s, l] = await Promise.all([
+        fetch("/api/antifrod/stats").then(r => r.json()),
+        fetch("/api/antifrod/logs?limit=20").then(r => r.json()),
+      ]);
+      setStats(s);
+      setLogs(l.logs ?? []);
+    } catch {
+      setStats(MOCK_STATS);
+      setLogs(MOCK_LOGS);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   };
 
-  const verdictLabel = (verdict: string) => {
-    if (verdict === "blocked")    return "БОТ";
-    if (verdict === "suspicious") return "ПОДОЗР.";
-    return "OK";
-  };
+  useEffect(() => { load(); }, []);
 
-  const fi = stats.model_metrics?.feature_importance ?? {};
-  const fiEntries = Object.entries(fi).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const maxFi = fiEntries[0]?.[1] ?? 1;
+  const m = stats?.model_metrics ?? {};
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <h1 className="text-2xl font-bold">Antifrod Dashboard</h1>
-            <span className="text-white/30 text-sm">live · обновление каждые 3с</span>
+    <main className="max-w-5xl mx-auto px-6 py-10 min-h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-3">
+          <Shield size={22} className="text-violet-400" />
+          <div>
+            <h1 className="text-xl font-bold">Antifrod Dashboard</h1>
+            <p className="text-white/30 text-xs">RandomForest + GradientBoosting ensemble</p>
           </div>
-          <Link href="/events" className="text-white/40 hover:text-white text-sm transition-colors">
-            ← к событиям
-          </Link>
         </div>
+        <button
+          onClick={() => load(true)}
+          disabled={refreshing}
+          className="flex items-center gap-2 text-xs text-white/40 hover:text-white border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition-all"
+        >
+          <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+          Обновить
+        </button>
+      </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: "Всего запросов",  value: stats.total_requests.toLocaleString(), color: "text-white" },
-            { label: "Заблокировано",   value: stats.blocked_total.toLocaleString(),  color: "text-red-400" },
-            { label: "Пропущено",       value: stats.allowed_total.toLocaleString(),  color: "text-green-400" },
-            { label: "Процент ботов",   value: `${stats.block_rate}%`,                color: "text-amber-400" },
-          ].map(s => (
-            <div key={s.label} className="bg-white/5 border border-white/10 rounded-xl p-4">
-              <div className="text-white/40 text-xs mb-1">{s.label}</div>
-              <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            </div>
-          ))}
+      {loading ? (
+        <div className="grid grid-cols-4 gap-4 mb-8">
+          {[1,2,3,4].map(i => <div key={i} className="h-24 bg-white/5 rounded-2xl animate-pulse" />)}
         </div>
-
-        <div className="grid grid-cols-2 gap-6">
+      ) : (
+        <>
+          {/* Stats cards */}
+          <div className="grid grid-cols-4 gap-4 mb-8">
+            <StatCard icon={Activity} label="Всего запросов" value={stats!.total_requests.toLocaleString()} color="text-white" />
+            <StatCard icon={Ban} label="Заблокировано" value={stats!.blocked_total.toLocaleString()} color="text-red-400" />
+            <StatCard icon={Users} label="Пропущено" value={stats!.allowed_total.toLocaleString()} color="text-emerald-400" />
+            <StatCard icon={TrendingUp} label="Block rate" value={`${stats!.block_rate}%`} color="text-amber-400" />
+          </div>
 
           {/* Model metrics */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Метрики модели</h2>
-              <span className="text-white/30 text-xs">RF + GBM ансамбль</span>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6">
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide mb-4">
+              Метрики модели
+            </h2>
+            <div className="grid grid-cols-5 gap-4">
               {[
-                { label: "Accuracy",  value: stats.model_metrics?.accuracy },
-                { label: "Precision", value: stats.model_metrics?.precision },
-                { label: "Recall",    value: stats.model_metrics?.recall },
-                { label: "F1 Score",  value: stats.model_metrics?.f1 },
-                { label: "ROC-AUC",   value: stats.model_metrics?.roc_auc },
-              ].map(m => (
-                <div key={m.label} className="bg-white/5 rounded-lg p-3">
-                  <div className="text-white/40 text-xs">{m.label}</div>
-                  <div className="text-lg font-bold text-purple-300">
-                    {m.value ? (m.value * 100).toFixed(1) + "%" : "—"}
+                ["Accuracy",  m.accuracy],
+                ["Precision", m.precision],
+                ["Recall",    m.recall],
+                ["F1 Score",  m.f1],
+                ["ROC-AUC",   m.roc_auc],
+              ].map(([label, val]) => (
+                <div key={label as string} className="text-center">
+                  <div className="text-2xl font-bold text-violet-300">
+                    {val ? (val as number * 100).toFixed(1) + "%" : "—"}
+                  </div>
+                  <div className="text-white/30 text-xs mt-1">{label as string}</div>
+                  {/* Mini bar */}
+                  <div className="mt-2 h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-violet-500 rounded-full"
+                      style={{ width: `${(val as number ?? 0) * 100}%` }}
+                    />
                   </div>
                 </div>
               ))}
             </div>
-            <div className="text-white/20 text-xs">
-              Обучено: {stats.model_metrics?.trained_at ?? "—"}
+          </div>
+
+          {/* Live log */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+            <h2 className="text-sm font-semibold text-white/50 uppercase tracking-wide mb-4">
+              Последние запросы
+            </h2>
+            <div className="space-y-2">
+              {logs.slice(0, 10).map((log, i) => (
+                <div key={i} className="flex items-center gap-4 text-xs py-2 border-b border-white/5 last:border-0">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${log.is_bot ? "bg-red-400" : "bg-emerald-400"}`} />
+                  <span className="font-mono text-white/50 w-32 shrink-0">{log.ip}</span>
+                  <span className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                    log.verdict === "blocked"
+                      ? "bg-red-950/60 text-red-300 border border-red-800/30"
+                      : "bg-emerald-950/60 text-emerald-300 border border-emerald-800/30"
+                  }`}>
+                    {log.verdict}
+                  </span>
+                  <span className="text-white/30">событие #{log.event_id} · место {log.seat_id}</span>
+                  <span className="ml-auto text-white/20 shrink-0">
+                    {Math.round((Date.now() - log.ts * 1000) / 1000)}с назад
+                  </span>
+                  <div className="w-16 h-1.5 bg-white/10 rounded-full overflow-hidden shrink-0">
+                    <div
+                      className={`h-full rounded-full ${log.is_bot ? "bg-red-500" : "bg-emerald-500"}`}
+                      style={{ width: `${log.confidence * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-white/30 w-8 text-right shrink-0">{(log.confidence * 100).toFixed(0)}%</span>
+                </div>
+              ))}
             </div>
           </div>
-
-          {/* Feature importance */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-5 space-y-3">
-            <h2 className="font-semibold">Важность признаков</h2>
-            {fiEntries.map(([name, val]) => (
-              <div key={name}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-white/60">{name}</span>
-                  <span className="text-white/40">{(val * 100).toFixed(1)}%</span>
-                </div>
-                <div className="bg-white/10 rounded-full h-1.5">
-                  <div
-                    className="bg-purple-500 h-1.5 rounded-full"
-                    style={{ width: `${(val / maxFi) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Live log */}
-        <div className="bg-white/5 border border-white/10 rounded-xl">
-          <div className="px-5 py-3 border-b border-white/10 flex items-center justify-between">
-            <h2 className="font-semibold text-sm">Последние запросы</h2>
-            <span className="text-white/30 text-xs">{logs.length} записей</span>
-          </div>
-          <div className="divide-y divide-white/5">
-            {logs.map((log, i) => (
-              <div key={i} className="px-5 py-2.5 flex items-center gap-4 text-sm hover:bg-white/3 transition-colors">
-                <span className="text-white/25 text-xs w-20 shrink-0">
-                  {new Date(log.ts * 1000).toLocaleTimeString("ru")}
-                </span>
-                <span className="font-mono text-white/60 w-36 shrink-0">{log.ip}</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${verdictBadge(log.verdict)}`}>
-                  {verdictLabel(log.verdict)}
-                </span>
-                <span className="text-white/35 text-xs shrink-0">
-                  {(log.confidence * 100).toFixed(0)}% уверенность
-                </span>
-                <span className="text-white/25 text-xs">
-                  event#{log.event_id} seat#{log.seat_id}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
+        </>
+      )}
     </main>
+  );
+}
+
+function StatCard({ icon: Icon, label, value, color }: {
+  icon: any; label: string; value: string; color: string;
+}) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+      <Icon size={16} className={`${color} mb-3 opacity-70`} />
+      <div className={`text-2xl font-bold ${color}`}>{value}</div>
+      <div className="text-white/30 text-xs mt-1">{label}</div>
+    </div>
   );
 }

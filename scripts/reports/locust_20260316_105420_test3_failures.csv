@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences
+GET,/api/auth/me/bookings,HTTPError('401 Client Error: Unauthorized for url: /api/auth/me/bookings'),101
+POST,/api/bookings/ [auth],HTTPError('429 Client Error: Too Many Requests for url: /api/bookings/ [auth]'),256
+GET,/api/auth/me,HTTPError('401 Client Error: Unauthorized for url: /api/auth/me'),85
+POST,/api/auth/register,HTTPError('500 Server Error: Internal Server Error for url: /api/auth/register'),60

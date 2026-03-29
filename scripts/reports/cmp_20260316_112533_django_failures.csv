@@ -1,0 +1,21 @@
+Method,Name,Error,Occurrences
+GET,[pure] GET /api/events/{id}/seats,"ConnectionResetError(104, 'Connection reset by peer')",94
+GET,[django] GET /admin/,"ConnectionResetError(104, 'Connection reset by peer')",71
+POST,[pure] POST /api/bookings/,"ConnectionResetError(104, 'Connection reset by peer')",239
+POST,[pure] POST /api/bookings/,RemoteDisconnected('Remote end closed connection without response'),93
+GET,[pure] GET /api/events/,RemoteDisconnected('Remote end closed connection without response'),46
+POST,[slow-bot] POST /api/bookings/,RemoteDisconnected('Remote end closed connection without response'),85
+POST,[slow-bot] POST /api/bookings/,"ConnectionResetError(104, 'Connection reset by peer')",161
+GET,[pure] GET /api/events/{id}/seats,RemoteDisconnected('Remote end closed connection without response'),41
+GET,[django] GET /api/events/{id}/seats,RemoteDisconnected('Remote end closed connection without response'),58
+GET,[pure] GET /api/events/,"ConnectionResetError(104, 'Connection reset by peer')",160
+POST,[fastapi] POST /api/bookings/,RemoteDisconnected('Remote end closed connection without response'),58
+GET,[django] GET /api/events/,"ConnectionResetError(104, 'Connection reset by peer')",282
+GET,[django] GET /api/events/{id}/seats,"ConnectionResetError(104, 'Connection reset by peer')",150
+GET,[fastapi] GET /api/events/,RemoteDisconnected('Remote end closed connection without response'),71
+GET,[django] GET /admin/,RemoteDisconnected('Remote end closed connection without response'),24
+GET,[fastapi] GET /api/events/{id}/seats,RemoteDisconnected('Remote end closed connection without response'),42
+POST,[fastapi] POST /api/bookings/,"ConnectionResetError(104, 'Connection reset by peer')",183
+GET,[fastapi] GET /api/events/{id}/seats,"ConnectionResetError(104, 'Connection reset by peer')",108
+GET,[fastapi] GET /api/events/,"ConnectionResetError(104, 'Connection reset by peer')",228
+GET,[django] GET /api/events/,RemoteDisconnected('Remote end closed connection without response'),97

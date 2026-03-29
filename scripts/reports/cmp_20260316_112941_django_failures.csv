@@ -1,0 +1,5 @@
+Method,Name,Error,Occurrences
+GET,GET /api/events/,"ConnectionResetError(104, 'Connection reset by peer')",1309
+GET,GET /api/events/,RemoteDisconnected('Remote end closed connection without response'),515
+GET,GET /api/events/{id}/seats,RemoteDisconnected('Remote end closed connection without response'),269
+GET,GET /api/events/{id}/seats,"ConnectionResetError(104, 'Connection reset by peer')",652

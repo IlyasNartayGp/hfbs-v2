@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences
+GET,GET /orders/,HTTPError('405 Client Error: Method Not Allowed for url: GET /orders/'),265
+GET,GET /tickets/{id}/,HTTPError('401 Client Error: Unauthorized for url: GET /tickets/{id}/'),219
+POST,POST /seats/reserve/,HTTPError('401 Client Error: Unauthorized for url: POST /seats/reserve/'),510

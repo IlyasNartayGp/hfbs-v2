@@ -1,0 +1,10 @@
+Method,Name,Error,Occurrences
+GET,GET /seats/,HTTPError('429 Client Error: Too Many Requests for url: GET /seats/'),128
+GET,GET /seats/,HTTPError('500 Server Error: Internal Server Error for url: GET /seats/'),42
+GET,GET /tickets/{id}/,HTTPError('401 Client Error: Unauthorized for url: GET /tickets/{id}/'),120
+POST,POST /seats/reserve/,HTTPError('401 Client Error: Unauthorized for url: POST /seats/reserve/'),243
+GET,GET /events/{id}/,HTTPError('429 Client Error: Too Many Requests for url: GET /events/{id}/'),80
+GET,GET /events/{id}/,HTTPError('500 Server Error: Internal Server Error for url: GET /events/{id}/'),42
+GET,GET /orders/,HTTPError('401 Client Error: Unauthorized for url: GET /orders/'),109
+GET,GET /events/,HTTPError('500 Server Error: Internal Server Error for url: GET /events/'),49
+GET,GET /events/,HTTPError('429 Client Error: Too Many Requests for url: GET /events/'),110

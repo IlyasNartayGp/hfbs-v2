@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences
+POST,/api/bookings/ [race],HTTPError('409 Client Error: Conflict for url: /api/bookings/ [race]'),7
+POST,/api/bookings/ [race],HTTPError('429 Client Error: Too Many Requests for url: /api/bookings/ [race]'),3009
+POST,/api/bookings/ [race],RemoteDisconnected('Remote end closed connection without response'),2073

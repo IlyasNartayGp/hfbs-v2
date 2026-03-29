@@ -9,5 +9,5 @@ COPY . .
 
 RUN mkdir -p /app/models
 
-EXPOSE 9303
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9303", "--reload"]
+EXPOSE 8003
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003", "--reload"]

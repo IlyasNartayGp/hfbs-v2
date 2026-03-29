@@ -1,0 +1,7 @@
+Method,Name,Error,Occurrences
+GET,GET /seats/,"ConnectionResetError(104, 'Connection reset by peer')",582
+GET,GET /seats/,RemoteDisconnected('Remote end closed connection without response'),248
+POST,POST /bookings/,"ConnectionResetError(104, 'Connection reset by peer')",587
+GET,GET /events/,RemoteDisconnected('Remote end closed connection without response'),317
+POST,POST /bookings/,RemoteDisconnected('Remote end closed connection without response'),271
+GET,GET /events/,"ConnectionResetError(104, 'Connection reset by peer')",812

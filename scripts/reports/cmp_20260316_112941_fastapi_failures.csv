@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences
+POST,POST /api/bookings/,HTTPError('422 Client Error: Unprocessable Entity for url: POST /api/bookings/'),619
