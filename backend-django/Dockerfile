@@ -13,5 +13,5 @@ COPY . .
 
 RUN mkdir -p /app/media/tickets
 
-EXPOSE 9202
-CMD ["python", "manage.py", "runserver", "0.0.0.0:9202"]
+EXPOSE 8002
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8002", "--noreload"]

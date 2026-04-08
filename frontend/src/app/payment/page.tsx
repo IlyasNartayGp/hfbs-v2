@@ -14,6 +14,12 @@ function PaymentContent() {
   const price     = Number(p.get("price") ?? 5000);
   const seat      = p.get("seat") ?? "—";
 
+  const gatewayBase =
+    typeof window !== "undefined"
+      ? `${window.location.protocol}//${window.location.hostname}:8880`
+      : "http://localhost:8880";
+  const ticketDownloadUrl = `${gatewayBase}/api/tickets/${bookingId}/download/`;
+
   const [card, setCard]       = useState({ number:"", expiry:"", cvv:"", name:"" });
   const [loading, setLoading] = useState(false);
   const [done, setDone]       = useState(false);
@@ -64,8 +70,8 @@ function PaymentContent() {
         {/* PDF статус */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-4 mb-6">
           {pdfReady ? (
-            
-              href={`/api/bookings/${bookingId}/ticket`}
+            <a
+              href={ticketDownloadUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 bg-violet-600 hover:bg-violet-500 text-white py-3 px-6 rounded-xl font-medium transition-colors w-full"

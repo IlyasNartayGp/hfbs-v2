@@ -25,7 +25,8 @@ services:
     ports:
       - "3737:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://nginx:8880/api
+      - NEXT_PUBLIC_API_URL=/api
+      - INTERNAL_API_PROXY_TARGET=http://nginx/api
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -38,6 +39,7 @@ services:
     build:
       context: ./backend-fastapi
       dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
     ports:
       - "9101:8001"
     environment:
@@ -45,6 +47,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - KAFKA_URL=kafka:9092
       - ANTIFROD_URL=http://antifrod:9303
+      - DJANGO_TICKET_URL=http://django:8002/api/tickets/generate/
     depends_on:
       kafka:
         condition: service_healthy
@@ -63,6 +66,7 @@ services:
     build:
       context: ./backend-django
       dockerfile: Dockerfile
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8002 --noreload"
     ports:
       - "9202:8002"
     environment:
@@ -75,6 +79,7 @@ services:
         condition: service_started
     volumes:
       - ./backend-django:/app
+      - tickets_data:/app/media/tickets
     networks:
       - hfbs-network
 
@@ -101,11 +106,12 @@ services:
     build:
       context: ./backend-fastapi
       dockerfile: Dockerfile
-    command: python -m app.consumers.ticket_consumer
+    command: python -m app.consumers.django_ticket_consumer
     environment:
       - DATABASE_URL=postgresql+asyncpg://hfbs:hfbs_pass@postgres:5432/hfbs
       - REDIS_URL=redis://redis:6379
       - KAFKA_URL=kafka:9092
+      - DJANGO_TICKET_URL=http://django:8002/api/tickets/generate/
     depends_on:
       kafka:
         condition: service_healthy
@@ -143,6 +149,7 @@ services:
       - POSTGRES_PASSWORD=hfbs_pass
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - "6543:5432"
     networks:

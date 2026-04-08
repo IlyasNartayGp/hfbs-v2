@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from app.core.database import get_db
 from app.core.security import (
@@ -10,6 +10,29 @@ import uuid
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+async def fetch_user_by_login(login: str):
+    async with get_db() as db:
+        return await db.fetchrow(
+            """
+            SELECT id, email, name, password_hash, created_at
+            FROM users
+            WHERE email = $1 OR name = $1
+            LIMIT 1
+            """,
+            login,
+        )
+
+
+def build_token_response(user) -> dict:
+    token = create_access_token({"sub": str(user["id"]), "email": user["email"]})
+    return {
+        "access": token,
+        "access_token": token,
+        "token_type": "bearer",
+        "user_id": str(user["id"]),
+    }
 
 
 @router.post("/register", response_model=TokenResponse)
@@ -36,6 +59,13 @@ async def register(req: RegisterRequest):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(form: OAuth2PasswordRequestForm = Depends()):
+    user = await fetch_user_by_login(form.username)
+    if not user or not verify_password(form.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="РќРµРІРµСЂРЅС‹Р№ email РёР»Рё РїР°СЂРѕР»СЊ")
+
+    token_data = build_token_response(user)
+    return TokenResponse(access_token=token_data["access_token"], token_type="bearer")
+
     async with get_db() as db:
         user = await db.fetchrow(
             "SELECT id, email, password_hash FROM users WHERE email = $1",
@@ -48,7 +78,19 @@ async def login(form: OAuth2PasswordRequestForm = Depends()):
     return TokenResponse(access_token=token, token_type="bearer")
 
 
+@router.post("/login/", include_in_schema=False)
+async def login_json(request: Request):
+    data = await request.json()
+    login_value = data.get("email") or data.get("username")
+    password = data.get("password")
+    user = await fetch_user_by_login(login_value or "")
+    if not user or not password or not verify_password(password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="РќРµРІРµСЂРЅС‹Р№ email РёР»Рё РїР°СЂРѕР»СЊ")
+    return build_token_response(user)
+
+
 @router.get("/me", response_model=UserOut)
+@router.get("/me/", response_model=UserOut, include_in_schema=False)
 async def me(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
     if not payload:
@@ -65,6 +107,7 @@ async def me(token: str = Depends(oauth2_scheme)):
 
 
 @router.get("/me/bookings")
+@router.get("/me/bookings/", include_in_schema=False)
 async def my_bookings(token: str = Depends(oauth2_scheme)):
     payload = decode_token(token)
     if not payload:

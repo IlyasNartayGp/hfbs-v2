@@ -2,8 +2,10 @@ import Link from "next/link";
 import { ArrowRight, Zap, Shield, Ticket } from "lucide-react";
 
 async function getEvents() {
+  const apiBase = process.env.INTERNAL_API_PROXY_TARGET ?? "http://nginx/api";
+
   try {
-    const res = await fetch("http://fastapi:8001/api/events/", {
+    const res = await fetch(`${apiBase}/events/`, {
       next: { revalidate: 60 },
     });
     if (!res.ok) return [];

@@ -6,7 +6,7 @@ class BookingRequest(BaseModel):
     event_id: int
     seat_id: int
     user_id: str
-    user_email: str
+    user_email: Optional[str] = None
 
 
 class BookingResponse(BaseModel):

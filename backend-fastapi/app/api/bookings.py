@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 from app.core.redis import redis_client
 from app.core.database import get_db
 from app.schemas.booking import BookingRequest, BookingResponse
@@ -7,6 +8,18 @@ from aiokafka import AIOKafkaProducer
 
 router = APIRouter()
 _producer = None
+
+
+def _extract_client_ip(request: Request) -> str:
+    forwarded_for = request.headers.get("x-forwarded-for", "").strip()
+    if forwarded_for:
+        return forwarded_for.split(",", 1)[0].strip()
+
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
+
+    return request.client.host
 
 async def get_producer() -> AIOKafkaProducer:
     global _producer
@@ -18,9 +31,10 @@ async def get_producer() -> AIOKafkaProducer:
     return _producer
 
 
+@router.post("", response_model=BookingResponse, include_in_schema=False)
 @router.post("/", response_model=BookingResponse)
 async def create_booking(request: Request, booking: BookingRequest):
-    client_ip = request.client.host
+    client_ip = _extract_client_ip(request)
     user_agent = request.headers.get("user-agent", "")
 
     # Antifrod inline Redis check
@@ -53,9 +67,13 @@ async def create_booking(request: Request, booking: BookingRequest):
     try:
         async with get_db() as db:
             await db.execute(
-                """INSERT INTO bookings (id, event_id, seat_id, user_id, status)
-                   VALUES ($1, $2, $3, $4, 'pending')""",
-                booking_id, booking.event_id, booking.seat_id, booking.user_id,
+                """INSERT INTO bookings (id, event_id, seat_id, user_id, user_email, status)
+                   VALUES ($1, $2, $3, $4, $5, 'pending')""",
+                booking_id,
+                booking.event_id,
+                booking.seat_id,
+                booking.user_id,
+                booking.user_email,
             )
         producer = await get_producer()
         await producer.send(
@@ -65,6 +83,7 @@ async def create_booking(request: Request, booking: BookingRequest):
                 "event_id":   booking.event_id,
                 "seat_id":    booking.seat_id,
                 "user_id":    booking.user_id,
+                "user_email": booking.user_email,
                 "ip":         client_ip,
                 "user_agent": user_agent,
             }).encode(),
@@ -96,9 +115,12 @@ async def cancel_booking(booking_id: str):
     return {"message": "Бронирование отменено"}
 
 
+@router.head("/{booking_id}/ticket", include_in_schema=False)
+@router.head("/{booking_id}/ticket/", include_in_schema=False)
 @router.get("/{booking_id}/ticket")
+@router.get("/{booking_id}/ticket/", include_in_schema=False)
 async def download_ticket(booking_id: str):
-    from fastapi.responses import FileResponse
+    return RedirectResponse(url=f"/api/tickets/{booking_id}/download/", status_code=307)
     import os
     path = f"/app/media/tickets/{booking_id}.pdf"
     if not os.path.exists(path):

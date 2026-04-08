@@ -7,6 +7,7 @@ router = APIRouter()
 
 
 @router.get("/", response_model=List[EventResponse])
+@router.get("", response_model=List[EventResponse], include_in_schema=False)
 async def list_events():
     """Список всех событий"""
     async with get_db() as db:
@@ -17,6 +18,7 @@ async def list_events():
 
 
 @router.get("/{event_id}", response_model=EventResponse)
+@router.get("/{event_id}/", response_model=EventResponse, include_in_schema=False)
 async def get_event(event_id: int):
     """Детали события с картой мест"""
     async with get_db() as db:
@@ -29,6 +31,7 @@ async def get_event(event_id: int):
 
 
 @router.get("/{event_id}/seats")
+@router.get("/{event_id}/seats/", include_in_schema=False)
 async def get_seats(event_id: int):
     """Карта мест — какие свободны, какие заняты"""
     async with get_db() as db:
